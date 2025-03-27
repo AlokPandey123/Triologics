@@ -1,0 +1,50 @@
+name: Build and Push to ACR
+
+on:
+  push:
+    branches:
+      - subtleChatbot
+
+env:
+  AZURE_ACR_NAME: subtlechatbotregistry
+  AZURE_ACR_REGISTRY: subtlechatbotregistry.azurecr.io
+  REPO_NAME: Vat-fe
+  IMAGE_NAME: subtlechatbot
+  GIT_USER: ${{ secrets.GIT_USER }}
+  GIT_PASSWORD: ${{ secrets.GIT_PASSWORD }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out workflow repository
+        uses: actions/checkout@v2
+        with:
+          ref: subtleChatbot
+
+      - name: Clone or Update Vat-fe Repository
+        run: |
+          if [ -d "${{ env.REPO_NAME }}" ]; then
+            echo "Repository already exists. Pulling latest changes..."
+            cd ${{ env.REPO_NAME }}
+            git reset --hard
+            git clean -fd
+            git checkout subtleChatbot
+            git pull origin subtleChatbot
+          else
+            echo "Cloning repository..."
+            git clone https://$GIT_USER:$GIT_PASSWORD@github.com/BaariLabs/${{ env.REPO_NAME }} ${{ env.REPO_NAME }}
+            cd ${{ env.REPO_NAME }}
+            git checkout subtleChatbot
+            git pull origin subtleChatbot
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: ./${{ env.REPO_NAME }}
+          push: true
+          tags: ${{ env.AZURE_ACR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          username: ${{ secrets.AZURE_ACR_USERNAME }}
+          password: ${{ secrets.AZURE_ACR_PASSWORD }}
+          registry: ${{ env.AZURE_ACR_REGISTRY }}
